@@ -25,5 +25,10 @@
   {registered, []},
   {applications, [kernel,
                   stdlib]},
-  {env, []}
+  {env, []},
+  {pkg_name, inaka_mixer},
+  {maintainers, ["Inaka"]},
+  {licenses, ["Apache 2.0"]},
+  {links, [{"Github", "https://github.com/inaka/mixer"}]},
+  {build_tools, ["make", "rebar"]}
  ]}.
