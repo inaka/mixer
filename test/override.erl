@@ -2,7 +2,7 @@
 
 -include("mixer.hrl").
 
--mixin([{foo, except, ?MODULE}]).
+-mixin([{foo, except, module}]).
 
 -export([doit/1]).
 

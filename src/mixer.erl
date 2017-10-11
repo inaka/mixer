@@ -31,8 +31,7 @@
                 arity}).
 
 -record(override_mixin, {line,
-                         mod,
-                         override_mod}).
+                         mod}).
 
 -spec parse_transform([term()], [term()]) -> [term()].
 parse_transform(Forms, _Options) ->
@@ -44,7 +43,6 @@ parse_transform(Forms, _Options) ->
             Forms;
         {Mixins, Exports} ->
             Mixins1 = inject_overrides(Mixins, lists:sort(Exports), []),
-            io:format("Mixins1: ~p~n", [Mixins1]),
             no_dupes(Mixins1),
             {EOF1, Forms2} = insert_stubs(Mixins1, EOF, Forms1),
             finalize(Mixins1, EOF1, Forms2)
@@ -53,23 +51,14 @@ parse_transform(Forms, _Options) ->
 %% Internal functions
 inject_overrides([], _Exports, Accum) ->
     lists:reverse(Accum);
-inject_overrides([#override_mixin{line=Line, mod=Mod, override_mod=OverrideMod}|T], Exports, Accum)
-  when OverrideMod /= undefined->
-    case OverrideMod /= get_calling_mod() of
-        true ->
-            io:format(
-                "~s:~p Cannot override external modules (~p)~n",
-                [get_file_name(), Line, OverrideMod]),
-            exit({error, illegal_override_mod});
-        false ->
-            case sorted_mod_exports(Mod) -- Exports of
-                [] ->
-                    inject_overrides(T, Exports, Accum);
-                MixableExports ->
-                    ToInject = [#mixin{line=Line, mod=Mod, fname=FName, arity=Arity, alias=FName} ||
-                                   {FName, Arity} <- MixableExports],
-                    inject_overrides(T, Exports, ToInject ++ Accum)
-            end
+inject_overrides([#override_mixin{line=Line, mod=Mod}|T], Exports, Accum) ->
+    case sorted_mod_exports(Mod) -- Exports of
+        [] ->
+            inject_overrides(T, Exports, Accum);
+        MixableExports ->
+            ToInject = [#mixin{line=Line, mod=Mod, fname=FName, arity=Arity, alias=FName} ||
+                           {FName, Arity} <- MixableExports],
+            inject_overrides(T, Exports, ToInject ++ Accum)
     end;
 inject_overrides([H|T], Exports, Accum) ->
     inject_overrides(T, Exports, [H|Accum]).
@@ -88,8 +77,8 @@ set_mod_info(_) -> ok.
 get_file_name() ->
     erlang:get(mixer_delegate_file).
 
-get_calling_mod() ->
-     erlang:get(mixer_calling_mod).
+%% get_calling_mod() ->
+%%     erlang:get(mixer_calling_mod).
 
 finalize(Mixins, NewEOF, Forms) ->
     insert_exports(Mixins, Forms, []) ++ [{eof, NewEOF}].
@@ -150,9 +139,8 @@ expand_mixin(Line, Name) when is_atom(Name) ->
             [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
              || {Fun, Arity} <- Exports, Fun /= module_info]
     end;
-expand_mixin(Line, {Name, except, OverrideMod}) when is_atom(Name),
-                                                      is_atom(OverrideMod) ->
-    [#override_mixin{line=Line, mod=Name, override_mod=OverrideMod}];
+expand_mixin(Line, {Name, except, module}) when is_atom(Name) ->
+    [#override_mixin{line=Line, mod=Name}];
 expand_mixin(Line, {Name, except, Funs}) when is_atom(Name),
                                               is_list(Funs) ->
     case catch Name:module_info(exports) of
