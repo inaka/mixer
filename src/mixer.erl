@@ -30,24 +30,49 @@
                 alias,
                 arity}).
 
+-record(override_mixin, {line,
+                         mod}).
+
 -spec parse_transform([term()], [term()]) -> [term()].
 parse_transform(Forms, _Options) ->
+    [set_mod_info(Form) || Form <- Forms],
     set_mod_info(Forms),
     {EOF, Forms1} = strip_eof(Forms),
-    case parse_and_expand_mixins(Forms1, []) of
-        [] ->
+    case parse_and_expand_mixins(Forms1, {[], []}) of
+        {[], _} ->
             Forms;
-        Mixins ->
-            no_dupes(Mixins),
-            {EOF1, Forms2} = insert_stubs(Mixins, EOF, Forms1),
-            finalize(Mixins, EOF1, Forms2)
+        {Mixins, Exports} ->
+            Mixins1 = inject_overrides(Mixins, lists:sort(Exports), []),
+            no_dupes(Mixins1),
+            {EOF1, Forms2} = insert_stubs(Mixins1, EOF, Forms1),
+            finalize(Mixins1, EOF1, Forms2)
     end.
 
 %% Internal functions
-set_mod_info([{attribute, _, file, {FileName, _}}|_]) ->
+inject_overrides([], _Exports, Accum) ->
+    lists:reverse(Accum);
+inject_overrides([#override_mixin{line=Line, mod=Mod}|T], Exports, Accum) ->
+    case sorted_mod_exports(Mod) -- Exports of
+        [] ->
+            inject_overrides(T, Exports, Accum);
+        MixableExports ->
+            ToInject = [#mixin{line=Line, mod=Mod, fname=FName, arity=Arity, alias=FName} ||
+                           {FName, Arity} <- MixableExports],
+            inject_overrides(T, Exports, ToInject ++ Accum)
+    end;
+inject_overrides([H|T], Exports, Accum) ->
+    inject_overrides(T, Exports, [H|Accum]).
+
+sorted_mod_exports(Mod) ->
+    lists:sort([{FName, Arity} || {FName, Arity} <- Mod:module_info(exports),
+                                  FName /= module_info]).
+
+set_mod_info({attribute, _, file, {FileName, _}}) ->
     erlang:put(mixer_delegate_file, FileName);
-set_mod_info([{attribute, _, module, Mod}|_]) ->
-    erlang:put(mixer_calling_mod, Mod).
+set_mod_info({attribute, _, module, Mod}) ->
+    erlang:put(mixer_calling_mod, Mod);
+set_mod_info(_) -> ok.
+
 
 get_file_name() ->
     erlang:get(mixer_delegate_file).
@@ -79,14 +104,16 @@ strip_eof([{eof, EOF}|T], Accum) ->
 strip_eof([H|T], Accum) ->
     strip_eof(T, [H|Accum]).
 
-parse_and_expand_mixins([], []) ->
-    [];
-parse_and_expand_mixins([], Accum) ->
-    group_mixins({none, 0}, lists:keysort(2, Accum), []);
-parse_and_expand_mixins([{attribute, Line, mixin, Mixins0}|T], Accum)
+parse_and_expand_mixins([], {[], _}) ->
+    {[], []};
+parse_and_expand_mixins([], {Mixins, Exports}) ->
+    {group_mixins({none, 0}, lists:keysort(2, Mixins), []), Exports};
+parse_and_expand_mixins([{attribute, Line, mixin, Mixins0}|T], {Mixins, Exports})
   when is_list(Mixins0) ->
-    Mixins = [expand_mixin(Line, Mixin) || Mixin <- Mixins0],
-    parse_and_expand_mixins(T, lists:flatten([Accum, Mixins]));
+    Mixins1 = [expand_mixin(Line, Mixin) || Mixin <- Mixins0],
+    parse_and_expand_mixins(T, {lists:flatten([Mixins, Mixins1]), Exports});
+parse_and_expand_mixins([{attribute, _Line, export, Exports1}|T], {Mixins, Exports}) ->
+    parse_and_expand_mixins(T, {Mixins, lists:flatten(Exports, Exports1)});
 parse_and_expand_mixins([_|T], Accum) ->
     parse_and_expand_mixins(T, Accum).
 
@@ -97,6 +124,8 @@ group_mixins({CMod, CLine}, [#mixin{mod=CMod, line=CLine}=H|T], Accum) ->
 group_mixins({CMod, CLine}, [#mixin{mod=CMod}=H|T], Accum) ->
     group_mixins({CMod, CLine}, T, [H#mixin{line=CLine}|Accum]);
 group_mixins({_CMod, _}, [#mixin{mod=Mod, line=Line}=H|T], Accum) ->
+    group_mixins({Mod, Line}, T, [H|Accum]);
+group_mixins({Mod, Line}, [#override_mixin{}=H|T], Accum) ->
     group_mixins({Mod, Line}, T, [H|Accum]).
 
 expand_mixin(Line, Name) when is_atom(Name) ->
@@ -110,6 +139,8 @@ expand_mixin(Line, Name) when is_atom(Name) ->
             [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
              || {Fun, Arity} <- Exports, Fun /= module_info]
     end;
+expand_mixin(Line, {Name, except, module}) when is_atom(Name) ->
+    [#override_mixin{line=Line, mod=Name}];
 expand_mixin(Line, {Name, except, Funs}) when is_atom(Name),
                                               is_list(Funs) ->
     case catch Name:module_info(exports) of
@@ -170,7 +201,8 @@ insert_stubs(Mixins, EOF, Forms) ->
              [  generate_stub(
                     atom_to_list(Mod), atom_to_list(Alias), atom_to_list(Fun),
                     Arity, CurrEOF) |Acc]
-            }
+            };
+            (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}
         end,
     {EOF1, Stubs} = lists:foldr(F, {EOF, []}, Mixins),
     {EOF1, Forms ++ lists:reverse(lists:flatten(Stubs))}.

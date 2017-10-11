@@ -35,3 +35,13 @@ alias_test_() ->
      {<<"All stubbed functions work">>,
       [?_assertMatch(doit, alias:blah()),
        ?_assertMatch(true, alias:can_has())]}].
+
+override_test_() ->
+    [{<<"All non-overridden functions are stubbed">>,
+      [?_assert(lists:member({doit, 0}, ?EXPORTS(override))),
+       ?_assert(lists:member({doit, 1}, ?EXPORTS(override))),
+       ?_assert(lists:member({doit, 2}, ?EXPORTS(override)))]},
+     {<<"All functions work as expected">>,
+      [?_assertMatch(doit, override:doit()),
+       ?_assertMatch([5,5], override:doit(5)),
+       ?_assertMatch([doit, 5, 10], override:doit(5, 10))]}].
