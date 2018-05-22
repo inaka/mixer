@@ -199,7 +199,9 @@ insert_stubs(Mixins, EOF, Forms) ->
             #mixin{mod=Mod, fname=Fun, arity=Arity, alias=Alias} = Mixin,
             {CurrEOF + 1,
              [  generate_stub(
-                    atom_to_list(Mod), atom_to_list(Alias), atom_to_list(Fun),
+                    "'" ++ atom_to_list(Mod) ++ "'",
+                    "'" ++ atom_to_list(Alias) ++ "'",
+                    "'" ++ atom_to_list(Fun) ++ "'",
                     Arity, CurrEOF) |Acc]
             };
             (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}

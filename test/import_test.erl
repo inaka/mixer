@@ -45,3 +45,8 @@ override_test_() ->
       [?_assertMatch(doit, override:doit()),
        ?_assertMatch([5,5], override:doit(5)),
        ?_assertMatch([doit, 5, 10], override:doit(5, 10))]}].
+
+reserved_test_() ->
+    [{<<"Use reserved words as function name">>,
+      [?_assertEqual(['or', "a", "b"], single:'or'("a", "b")),
+       ?_assertEqual(['or_2', "a", "b"], override:'or'("a", "b"))]}].
