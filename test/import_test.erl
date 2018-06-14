@@ -49,4 +49,13 @@ override_test_() ->
 reserved_test_() ->
     [{<<"Use reserved words as function name">>,
       [?_assertEqual(['or', "a", "b"], single:'or'("a", "b")),
-       ?_assertEqual(['or_2', "a", "b"], override:'or'("a", "b"))]}].
+       ?_assertEqual(['or_override', "a", "b"], override:'or'("a", "b"))]}].
+
+invalid_atom_format_test_() ->
+    [{<<"Use non-alphanumeric atom as function name">>,
+      [?_assertEqual(['a_function', "a"], single:'a-function'("a")),
+       ?_assertEqual(['a_function_override', "a"], override:'a-function'("a")),
+       ?_assertEqual(['camel'], single:'CamelCaseFunction WithSpaces'()),
+       ?_assertEqual(['camel_override'], override:'CamelCaseFunction WithSpaces'()),
+       ?_assertEqual(['camel', "a"], single:'CamelCaseFunction WithSpaces'("a")),
+       ?_assertEqual(['camel_override', "a"], override:'CamelCaseFunction WithSpaces'("a"))]}].
