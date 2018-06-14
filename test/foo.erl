@@ -5,6 +5,8 @@
   'or'/2, 'a-function'/1,
   'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
 ]).
+-export(['\''/0, '\''/1, ''/0, ''/1]).
+-export(['🎱'/0, '🎱'/1]).
 
 doit() ->
     doit.
@@ -19,10 +21,28 @@ doit(A, B) ->
     ['or', A, B].
 
 'a-function'(A) ->
-  [a_function, A].
+    [a_function, A].
 
 'CamelCaseFunction WithSpaces'() ->
-  [camel].
+    [camel].
 
 'CamelCaseFunction WithSpaces'(A) ->
-  [camel, A].
+    [camel, A].
+
+'\''() ->
+    "why do you do this, kiddo?".
+
+'\''(This) ->
+    {This, is, devilish}.
+
+''() ->
+    ''(wat).
+
+''(Var) ->
+    {'🤯', Var}.
+
+'🎱'() ->
+    '🎱'('🙄').
+
+'🎱'(X) ->
+    {'not', X}.

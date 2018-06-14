@@ -9,6 +9,9 @@
   'or'/2, 'a-function'/1,
   'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
 ]).
+-export(['\''/1, ''/1]).
+-export(['🎱'/1]).
+
 
 doit(A) ->
     [A, A].
@@ -24,3 +27,12 @@ doit(A) ->
 
 'CamelCaseFunction WithSpaces'(A) ->
   [camel_override, A].
+
+'\''(This) ->
+    {This, is, overridden}.
+
+''(Var) ->
+    {overridden, Var}.
+
+'🎱'(X) ->
+    {overridden, X}.
