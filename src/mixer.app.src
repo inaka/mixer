@@ -21,10 +21,9 @@
 {application, mixer,
  [
   {description, "Mix in public functions from external modules"},
-  {vsn, "1.0.0"},
+  {vsn, "1.0.1"},
   {registered, []},
-  {applications, [kernel,
-                  stdlib]},
+  {applications, [kernel, stdlib]},
   {env, []},
   {pkg_name, inaka_mixer},
   {maintainers, ["Inaka"]},
