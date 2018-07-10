@@ -1,10 +1,18 @@
 # Change Log
 
+## [1.0.1](https://github.com/inaka/mixer/tree/1.0.1) (2018-07-10)
+[Full Changelog](https://github.com/inaka/mixer/compare/1.0.0...1.0.1)
+
+**Merged pull requests:**
+
+- Use reserved words as function name [\#10](https://github.com/inaka/mixer/pull/10) ([f3c0](https://github.com/f3c0))
+
 ## [1.0.0](https://github.com/inaka/mixer/tree/1.0.0) (2017-10-11)
 [Full Changelog](https://github.com/inaka/mixer/compare/0.1.5...1.0.0)
 
 **Merged pull requests:**
 
+- Version bump to 1.0.0 [\#9](https://github.com/inaka/mixer/pull/9) ([harenson](https://github.com/harenson))
 - Add new mixin type [\#8](https://github.com/inaka/mixer/pull/8) ([kevsmith](https://github.com/kevsmith))
 
 ## [0.1.5](https://github.com/inaka/mixer/tree/0.1.5) (2015-12-29)
