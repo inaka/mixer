@@ -44,6 +44,33 @@ override_test_() ->
        ?_assertMatch([5,5], override:doit(5)),
        ?_assertMatch([doit, 5, 10], override:doit(5, 10))]}].
 
+reserved_test_() ->
+    [{<<"Use reserved words as function name">>,
+      [?_assertEqual(['or', "a", "b"], single:'or'("a", "b")),
+       ?_assertEqual(['or_override', "a", "b"], override:'or'("a", "b"))]}].
+
+strange_atom_format_test_() ->
+    [{<<"Use non-alphanumeric atom as function name">>,
+      [?_assertEqual(['a_function', "a"], single:'a-function'("a")),
+       ?_assertEqual(['a_function_override', "a"], override:'a-function'("a")),
+       ?_assertEqual(['camel'], single:'CamelCaseFunction WithSpaces'()),
+       ?_assertEqual(['camel_override'], override:'CamelCaseFunction WithSpaces'()),
+       ?_assertEqual(['camel', "a"], single:'CamelCaseFunction WithSpaces'("a")),
+       ?_assertEqual(['camel_override', "a"], override:'CamelCaseFunction WithSpaces'("a")),
+       ?_assertEqual("why do you do this, kiddo?", single:'\''()),
+       ?_assertEqual("why do you do this, kiddo?", override:'\''()),
+       ?_assertEqual({this, is, devilish}, single:'\''(this)),
+       ?_assertEqual({this, is, overridden}, override:'\''(this)),
+       ?_assertEqual({'🤯', wat}, single:''()),
+       ?_assertEqual({'🤯', wat}, override:''()),
+       ?_assertEqual({'🤯', "🧙‍♂️"}, single:''("🧙‍♂️")),
+       ?_assertEqual({overridden, "🧙‍♂️"}, override:''("🧙‍♂️")),
+       ?_assertEqual({'not', '🙄'}, single:'🎱'()),
+       ?_assertEqual({'not', '🙄'}, override:'🎱'()),
+       ?_assertEqual({'not', wat}, single:'🎱'(wat)),
+       ?_assertEqual({overridden, wat}, override:'🎱'(wat))
+       ]}].
+
 specs_test_() ->
     [{<<"Specs are not generated if not requested">>,
       [?_assertNot(lists:member({doit, 0}, specs(override))),

@@ -201,8 +201,10 @@ insert_stubs(Mixins, Specs, EOF, Forms) ->
             #mixin{mod=Mod, fname=Fun, arity=Arity, alias=Alias} = Mixin,
             {CurrEOF + 1,
              [  generate_stub(
-                    atom_to_list(Mod), atom_to_list(Alias), atom_to_list(Fun),
-                    Arity, Specs, CurrEOF) |Acc]
+                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
+                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
+                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
+                    Arity, CurrEOF) |Acc]
             };
             (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}
         end,
