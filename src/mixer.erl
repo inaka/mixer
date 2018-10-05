@@ -204,7 +204,7 @@ insert_stubs(Mixins, Specs, EOF, Forms) ->
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
-                    Arity, CurrEOF) |Acc]
+                    Arity, Specs, CurrEOF) |Acc]
             };
             (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}
         end,
