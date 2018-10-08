@@ -38,13 +38,13 @@ parse_transform(Forms, _Options) ->
     [set_mod_info(Form) || Form <- Forms],
     set_mod_info(Forms),
     {EOF, Forms1} = strip_eof(Forms),
-    case parse_and_expand_mixins(Forms1, {[], []}) of
-        {[], _} ->
+    case parse_and_expand_mixins(Forms1, {[], [], none}) of
+        {[], _, _} ->
             Forms;
-        {Mixins, Exports} ->
+        {Mixins, Exports, Specs} ->
             Mixins1 = inject_overrides(Mixins, lists:sort(Exports), []),
             no_dupes(Mixins1),
-            {EOF1, Forms2} = insert_stubs(Mixins1, EOF, Forms1),
+            {EOF1, Forms2} = insert_stubs(Mixins1, Specs, EOF, Forms1),
             finalize(Mixins1, EOF1, Forms2)
     end.
 
@@ -104,16 +104,18 @@ strip_eof([{eof, EOF}|T], Accum) ->
 strip_eof([H|T], Accum) ->
     strip_eof(T, [H|Accum]).
 
-parse_and_expand_mixins([], {[], _}) ->
-    {[], []};
-parse_and_expand_mixins([], {Mixins, Exports}) ->
-    {group_mixins({none, 0}, lists:keysort(2, Mixins), []), Exports};
-parse_and_expand_mixins([{attribute, Line, mixin, Mixins0}|T], {Mixins, Exports})
+parse_and_expand_mixins([], {[], _, Specs}) ->
+    {[], [], Specs};
+parse_and_expand_mixins([], {Mixins, Exports, Specs}) ->
+    {group_mixins({none, 0}, lists:keysort(2, Mixins), []), Exports, Specs};
+parse_and_expand_mixins([{attribute, Line, mixin, Mixins0}|T], {Mixins, Exports, Specs})
   when is_list(Mixins0) ->
     Mixins1 = [expand_mixin(Line, Mixin) || Mixin <- Mixins0],
-    parse_and_expand_mixins(T, {lists:flatten([Mixins, Mixins1]), Exports});
-parse_and_expand_mixins([{attribute, _Line, export, Exports1}|T], {Mixins, Exports}) ->
-    parse_and_expand_mixins(T, {Mixins, lists:flatten(Exports, Exports1)});
+    parse_and_expand_mixins(T, {lists:flatten([Mixins, Mixins1]), Exports, Specs});
+parse_and_expand_mixins([{attribute, _Line, mixin_specs, Specs}|T], {Mixins, Exports, _Specs}) ->
+    parse_and_expand_mixins(T, {Mixins, Exports, Specs});
+parse_and_expand_mixins([{attribute, _Line, export, Exports1}|T], {Mixins, Exports, Specs}) ->
+    parse_and_expand_mixins(T, {Mixins, lists:flatten(Exports, Exports1), Specs});
 parse_and_expand_mixins([_|T], Accum) ->
     parse_and_expand_mixins(T, Accum).
 
@@ -193,7 +195,7 @@ find_dupe(Fun, Arity, [#mixin{mod=Name, fname=Fun, arity=Arity}|_]) ->
 find_dupe(Fun, Arity, [_|T]) ->
     find_dupe(Fun, Arity, T).
 
-insert_stubs(Mixins, EOF, Forms) ->
+insert_stubs(Mixins, Specs, EOF, Forms) ->
     F =
         fun(#mixin{} = Mixin, {CurrEOF, Acc}) ->
             #mixin{mod=Mod, fname=Fun, arity=Arity, alias=Alias} = Mixin,
@@ -202,19 +204,25 @@ insert_stubs(Mixins, EOF, Forms) ->
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
-                    Arity, CurrEOF) |Acc]
+                    Arity, Specs, CurrEOF) |Acc]
             };
             (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}
         end,
     {EOF1, Stubs} = lists:foldr(F, {EOF, []}, Mixins),
     {EOF1, Forms ++ lists:reverse(lists:flatten(Stubs))}.
 
-generate_stub(Mixin, Alias, Name, Arity, CurrEOF) when Arity =< ?ARITY_LIMIT ->
-    AnyList = lists:duplicate(Arity, "any()"),
-    ArgTypeList = string:join(AnyList, ", "),
-    SpecCode = "-spec " ++ Alias ++ "(" ++ ArgTypeList ++ ") -> any().",
-    {ok, SpecTokens, _} = erl_scan:string(SpecCode),
-    {ok, SpecForm} = erl_parse:parse_form(SpecTokens),
+generate_stub(Mixin, Alias, Name, Arity, Specs, CurrEOF) when Arity =< ?ARITY_LIMIT ->
+    {ok, SpecForm} =
+        case Specs of
+            all ->
+                AnyList = lists:duplicate(Arity, "any()"),
+                ArgTypeList = string:join(AnyList, ", "),
+                SpecCode = "-spec " ++ Alias ++ "(" ++ ArgTypeList ++ ") -> any().",
+                {ok, SpecTokens, _} = erl_scan:string(SpecCode),
+                erl_parse:parse_form(SpecTokens);
+            none ->
+                {ok, []}
+        end,
 
     ArgList = "(" ++ make_param_list(Arity) ++ ")",
     Code = Alias ++ ArgList ++ "-> " ++ Mixin ++ ":" ++ Name ++ ArgList ++ ".",
