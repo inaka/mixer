@@ -35,7 +35,7 @@
 
 -spec parse_transform([term()], [term()]) -> [term()].
 parse_transform(Forms, _Options) ->
-    [set_mod_info(Form) || Form <- Forms],
+    lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),
     {EOF, Forms1} = strip_eof(Forms),
     case parse_and_expand_mixins(Forms1, {[], [], none}) of

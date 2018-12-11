@@ -1,10 +1,23 @@
 # Change Log
 
+## [1.1.0](https://github.com/inaka/mixer/tree/1.1.0) (2018-12-11)
+[Full Changelog](https://github.com/inaka/mixer/compare/1.0.1...1.1.0)
+
+**Closed issues:**
+
+- Migrate to rebar3 [\#11](https://github.com/inaka/mixer/issues/11)
+
+**Merged pull requests:**
+
+- Migrate to rebar3 [\#16](https://github.com/inaka/mixer/pull/16) ([nilium](https://github.com/nilium))
+- \[\#13\] Initial attempt at fixing spec generation [\#14](https://github.com/inaka/mixer/pull/14) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [1.0.1](https://github.com/inaka/mixer/tree/1.0.1) (2018-07-10)
 [Full Changelog](https://github.com/inaka/mixer/compare/1.0.0...1.0.1)
 
 **Merged pull requests:**
 
+- Bump Version to 1.0.1 [\#12](https://github.com/inaka/mixer/pull/12) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Use reserved words as function name [\#10](https://github.com/inaka/mixer/pull/10) ([f3c0](https://github.com/f3c0))
 
 ## [1.0.0](https://github.com/inaka/mixer/tree/1.0.0) (2017-10-11)

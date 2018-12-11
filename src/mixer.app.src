@@ -21,7 +21,7 @@
 {application, mixer,
  [
   {description, "Mix in public functions from external modules"},
-  {vsn, "1.0.1"},
+  {vsn, "1.1.0"},
   {registered, []},
   {applications, [kernel, stdlib]},
   {env, []},
@@ -29,5 +29,5 @@
   {maintainers, ["Inaka"]},
   {licenses, ["Apache 2.0"]},
   {links, [{"Github", "https://github.com/inaka/mixer"}]},
-  {build_tools, ["make", "rebar"]}
+  {build_tools, ["rebar3"]}
  ]}.
