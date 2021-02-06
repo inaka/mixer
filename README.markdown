@@ -1,5 +1,7 @@
 # Mixer
 
+[![Build Status](https://github.com/inaka/mixer/workflows/build/badge.svg)](https://github.com/inaka/mixer)
+
 Mix in functions from other modules.
 
 ## Concept

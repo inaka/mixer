@@ -21,6 +21,7 @@
 -module(mixer).
 
 -export([parse_transform/2]).
+-ignore_xref(parse_transform/2).
 
 -define(ARITY_LIMIT, 26).
 
@@ -33,7 +34,7 @@
 -record(override_mixin, {line,
                          mod}).
 
--spec parse_transform([term()], [term()]) -> [term()].
+-spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()]) -> [term()].
 parse_transform(Forms, _Options) ->
     lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),
