@@ -37,7 +37,11 @@
 parse_transform(Forms, _Options) ->
     lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),
-    {EOF, Forms1} = strip_eof(Forms),
+    {EOF0, Forms1} = strip_eof(Forms),
+    EOF = case EOF0 of
+              {Line, _Col} -> Line;
+              Line -> Line
+          end,
     case parse_and_expand_mixins(Forms1, {[], [], none}) of
         {[], _, _} ->
             Forms;
