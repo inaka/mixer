@@ -21,6 +21,7 @@
 -module(mixer).
 
 -export([parse_transform/2]).
+-ignore_xref(parse_transform/2).
 
 -define(ARITY_LIMIT, 26).
 
@@ -33,19 +34,19 @@
 -record(override_mixin, {line,
                          mod}).
 
--spec parse_transform([term()], [term()]) -> [term()].
+-spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()]) -> [term()].
 parse_transform(Forms, _Options) ->
     lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),
-    {EOF, Forms1} = strip_eof(Forms),
+    {EOFLoc, Forms1} = strip_eof_location(Forms),
     case parse_and_expand_mixins(Forms1, {[], [], none}) of
         {[], _, _} ->
             Forms;
         {Mixins, Exports, Specs} ->
             Mixins1 = inject_overrides(Mixins, lists:sort(Exports), []),
             no_dupes(Mixins1),
-            {EOF1, Forms2} = insert_stubs(Mixins1, Specs, EOF, Forms1),
-            finalize(Mixins1, EOF1, Forms2)
+            {EOFLoc1, Forms2} = insert_stubs(Mixins1, Specs, EOFLoc, Forms1),
+            finalize(Mixins1, EOFLoc1, Forms2)
     end.
 
 %% Internal functions
@@ -80,8 +81,8 @@ get_file_name() ->
 %% get_calling_mod() ->
 %%     erlang:get(mixer_calling_mod).
 
-finalize(Mixins, NewEOF, Forms) ->
-    insert_exports(Mixins, Forms, []) ++ [{eof, NewEOF}].
+finalize(Mixins, NewEOFLoc, Forms) ->
+    insert_exports(Mixins, Forms, []) ++ [{eof, NewEOFLoc}].
 
 insert_exports([], Forms, Accum) ->
     Accum ++ Forms;
@@ -94,15 +95,15 @@ insert_exports([#mixin{line=Line}|_]=Mixins, [], Accum) ->
 insert_exports(Mixins, [H|T], Accum) ->
     insert_exports(Mixins, T, Accum ++ [H]).
 
-strip_eof(Forms) ->
-    strip_eof(Forms, []).
+strip_eof_location(Forms) ->
+    strip_eof_location(Forms, []).
 
-strip_eof([], Accum) ->
+strip_eof_location([], Accum) ->
     lists:reverse(Accum);
-strip_eof([{eof, EOF}|T], Accum) ->
-    {EOF, lists:reverse(Accum) ++ T};
-strip_eof([H|T], Accum) ->
-    strip_eof(T, [H|Accum]).
+strip_eof_location([{eof, EOFLoc}|T], Accum) ->
+    {EOFLoc, lists:reverse(Accum) ++ T};
+strip_eof_location([H|T], Accum) ->
+    strip_eof_location(T, [H|Accum]).
 
 parse_and_expand_mixins([], {[], _, Specs}) ->
     {[], [], Specs};
@@ -195,23 +196,23 @@ find_dupe(Fun, Arity, [#mixin{mod=Name, fname=Fun, arity=Arity}|_]) ->
 find_dupe(Fun, Arity, [_|T]) ->
     find_dupe(Fun, Arity, T).
 
-insert_stubs(Mixins, Specs, EOF, Forms) ->
+insert_stubs(Mixins, Specs, EOFLoc, Forms) ->
     F =
-        fun(#mixin{} = Mixin, {CurrEOF, Acc}) ->
+        fun(#mixin{} = Mixin, {CurrEOFLoc, Acc}) ->
             #mixin{mod=Mod, fname=Fun, arity=Arity, alias=Alias} = Mixin,
-            {CurrEOF + 1,
+            {erl_anno:set_line(erl_anno:line(CurrEOFLoc) + 1, CurrEOFLoc),
              [  generate_stub(
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
                     binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
-                    Arity, Specs, CurrEOF) |Acc]
+                    Arity, Specs, CurrEOFLoc) |Acc]
             };
-            (#override_mixin{}, {CurrEOF, Acc}) -> {CurrEOF, Acc}
+            (#override_mixin{}, {CurrEOFLoc, Acc}) -> {CurrEOFLoc, Acc}
         end,
-    {EOF1, Stubs} = lists:foldr(F, {EOF, []}, Mixins),
-    {EOF1, Forms ++ lists:reverse(lists:flatten(Stubs))}.
+    {CurrEOFLoc1, Stubs} = lists:foldr(F, {EOFLoc, []}, Mixins),
+    {CurrEOFLoc1, Forms ++ lists:reverse(lists:flatten(Stubs))}.
 
-generate_stub(Mixin, Alias, Name, Arity, Specs, CurrEOF) when Arity =< ?ARITY_LIMIT ->
+generate_stub(Mixin, Alias, Name, Arity, Specs, CurrEOFLoc) when Arity =< ?ARITY_LIMIT ->
     {ok, SpecForm} =
         case Specs of
             all ->
@@ -228,25 +229,25 @@ generate_stub(Mixin, Alias, Name, Arity, Specs, CurrEOF) when Arity =< ?ARITY_LI
     Code = Alias ++ ArgList ++ "-> " ++ Mixin ++ ":" ++ Name ++ ArgList ++ ".",
     {ok, Tokens, _} = erl_scan:string(Code),
     {ok, Form} = erl_parse:parse_form(Tokens),
-    FunForm = replace_stub_linenum(CurrEOF, Form),
+    FunForm = replace_stub_location(CurrEOFLoc, Form),
     [FunForm, SpecForm].
 
-replace_stub_linenum(CurrEOF, {function, _, Name, Arity, Body}) ->
-    {function, CurrEOF, Name, Arity, replace_stub_linenum(CurrEOF, Body, [])}.
+replace_stub_location(CurrEOFLoc, {function, _, Name, Arity, Body}) ->
+    {function, CurrEOFLoc, Name, Arity, replace_stub_location(CurrEOFLoc, Body, [])}.
 
-replace_stub_linenum(CurrEOF, [{clause, _, Vars, [], Call}], _) ->
-    [{clause, CurrEOF, replace_stub_linenum(CurrEOF, Vars, []), [],
-     replace_stub_linenum(CurrEOF, Call, [])}];
-replace_stub_linenum(_CurrEOF, [], Accum) ->
+replace_stub_location(CurrEOFLoc, [{clause, _, Vars, [], Call}], _) ->
+    [{clause, CurrEOFLoc, replace_stub_location(CurrEOFLoc, Vars, []), [],
+     replace_stub_location(CurrEOFLoc, Call, [])}];
+replace_stub_location(_CurrEOFLoc, [], Accum) ->
     lists:reverse(Accum);
-replace_stub_linenum(CurrEOF, [{var, _, Var}|T], Accum) ->
-    replace_stub_linenum(CurrEOF, T, [{var, CurrEOF, Var}|Accum]);
-replace_stub_linenum(
-    CurrEOF, [{call, _, {remote, _, {atom, _, Mod}, {atom, _, Fun}}, Args}],
+replace_stub_location(CurrEOFLoc, [{var, _, Var}|T], Accum) ->
+    replace_stub_location(CurrEOFLoc, T, [{var, CurrEOFLoc, Var}|Accum]);
+replace_stub_location(
+    CurrEOFLoc, [{call, _, {remote, _, {atom, _, Mod}, {atom, _, Fun}}, Args}],
     _Accum) ->
-    [{call, CurrEOF,
-      {remote, CurrEOF, {atom, CurrEOF, Mod}, {atom, CurrEOF, Fun}},
-      replace_stub_linenum(CurrEOF, Args, [])}].
+    [{call, CurrEOFLoc,
+      {remote, CurrEOFLoc, {atom, CurrEOFLoc, Mod}, {atom, CurrEOFLoc, Fun}},
+      replace_stub_location(CurrEOFLoc, Args, [])}].
 
 %% Use single upper-case letters for params
 make_param_list(0) ->
