@@ -137,7 +137,7 @@ expand_mixin(Line, Name) when is_atom(Name) ->
             io:format(
                 "~s:~p Unable to resolve imported module ~p~n",
                 [get_file_name(), Line, Name]),
-            exit({error, undef_mixin_module});
+            error({error, undef_mixin_module});
         Exports ->
             [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
              || {Fun, Arity} <- Exports, Fun /= module_info]
@@ -151,7 +151,7 @@ expand_mixin(Line, {Name, except, Funs}) when is_atom(Name),
             io:format(
                 "~s:~p Unable to resolve imported module ~p~n",
                 [get_file_name(), Line, Name]),
-            exit({error, undef_mixin_module});
+            error({error, undef_mixin_module});
         Exports ->
             [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
              || {Fun, Arity} <- Exports,
@@ -184,7 +184,7 @@ no_dupes(#mixin{mod=Mod, fname=Fun, arity=Arity, line=Line}, Rest) ->
                 "~s:~p Duplicate mixin detected "
                 "importing ~p/~p from ~p and ~p~n",
                 [get_file_name(), Line, Fun, Arity, Mod, Mod1]),
-            exit({error, duplicate_mixins});
+            error({error, duplicate_mixins});
         not_found ->
             ok
     end.
