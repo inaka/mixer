@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/inaka/mixer/tree/1.2.0) (2021-05-20)
+
+[Full Changelog](https://github.com/inaka/mixer/compare/1.1.1...1.2.0)
+
+**Merged pull requests:**
+
+- Increase consumer confidence + adapt to 24.0 [\#20](https://github.com/inaka/mixer/pull/20) ([paulo-ferraz-oliveira](https://github.com/paulo-ferraz-oliveira))
+- Move to a GitHub action \(instead of container-based\) CI approach [\#19](https://github.com/inaka/mixer/pull/19) ([paulo-ferraz-oliveira](https://github.com/paulo-ferraz-oliveira))
+
 ## [1.1.1](https://github.com/inaka/mixer/tree/1.1.1) (2021-02-08)
 
 [Full Changelog](https://github.com/inaka/mixer/compare/1.1.0...1.1.1)
