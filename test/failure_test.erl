@@ -14,7 +14,7 @@ duplicate_test_() ->
               {ok, Path, Error} = compile_bad_test_file("duplicates"),
               ?assertMatch({error,[{Path,
                                     [{none,compile,
-                                      {parse_transform,mixer,{error,duplicate_mixins}}}]}],
+                                      {parse_transform,mixer,{{error,duplicate_mixins}, _}}}]}],
                             []}, Error) end}].
 
 conflicting_mixins_test_() ->
@@ -25,7 +25,7 @@ conflicting_mixins_test_() ->
               {ok, Path, Error} = compile_bad_test_file("conflicts"),
               ?assertMatch({error,[{Path,
                                     [{none,compile,
-                                      {parse_transform,mixer,{error,duplicate_mixins}}}]}],
+                                      {parse_transform,mixer,{{error,duplicate_mixins}, _}}}]}],
                             []}, Error) end}].
 
 %% Internal functions
