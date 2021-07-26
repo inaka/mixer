@@ -12,6 +12,7 @@
 -export(['\''/1, ''/1]).
 -export(['🎱'/1]).
 
+-elvis([{elvis_style, function_naming_convention, disable}]).
 
 doit(A) ->
     [A, A].

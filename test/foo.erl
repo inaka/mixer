@@ -8,6 +8,8 @@
 -export(['\''/0, '\''/1, ''/0, ''/1]).
 -export(['🎱'/0, '🎱'/1]).
 
+-elvis([{elvis_style, function_naming_convention, disable}]).
+
 doit() ->
     doit.
 
