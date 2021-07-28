@@ -2,6 +2,9 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+% call to :module_info
+-elvis([{elvis_style, invalid_dynamic_call, #{ ignore => [{import_test, exports, 1}] }}]).
+
 single_test_() ->
     [{<<"All functions on 'single' stubbed properly">>,
      [?_assert(lists:member({doit, 0}, exports(single))),
@@ -41,7 +44,7 @@ override_test_() ->
        ?_assert(lists:member({doit, 2}, exports(override)))]},
      {<<"All functions work as expected">>,
       [?_assertMatch(doit, override:doit()),
-       ?_assertMatch([5,5], override:doit(5)),
+       ?_assertMatch([5, 5], override:doit(5)),
        ?_assertMatch([doit, 5, 10], override:doit(5, 10))]}].
 
 reserved_test_() ->
@@ -93,5 +96,5 @@ exports(Mod) -> Mod:module_info(exports).
 
 specs(Mod) ->
     Path = code:which(Mod),
-    {ok,{_,[{abstract_code,{_,AC}}]}} = beam_lib:chunks(Path, [abstract_code]),
+    {ok, {_, [{abstract_code, {_, AC}}]}} = beam_lib:chunks(Path, [abstract_code]),
     [{Fun, Arity} || {attribute, 1, spec, {{Fun, Arity}, _}} <- AC].

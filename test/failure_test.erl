@@ -3,8 +3,9 @@
 -include_lib("kernel/include/file.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--define(EXPORTS(Mod), Mod:module_info(exports)).
 -define(EUNIT_TEMP_PATH, "_build/test/test_gen").
+
+-elvis([{elvis_style, dont_repeat_yourself, disable}]).
 
 duplicate_test_() ->
     [{<<"Duplicate mixins detected">>,
@@ -12,9 +13,9 @@ duplicate_test_() ->
               Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
               ?assertEqual(ok, check_make_dir(Mkdir)),
               {ok, Path, Error} = compile_bad_test_file("duplicates"),
-              ?assertMatch({error,[{Path,
-                                    [{none,compile,
-                                      {parse_transform,mixer,{{error,duplicate_mixins}, _}}}]}],
+              ?assertMatch({error, [{Path,
+                                     [{none, compile,
+                                       {parse_transform, mixer, {{error, duplicate_mixins}, _}}}]}],
                             []}, Error) end}].
 
 conflicting_mixins_test_() ->
@@ -23,9 +24,9 @@ conflicting_mixins_test_() ->
               Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
               ?assertEqual(ok, check_make_dir(Mkdir)),
               {ok, Path, Error} = compile_bad_test_file("conflicts"),
-              ?assertMatch({error,[{Path,
-                                    [{none,compile,
-                                      {parse_transform,mixer,{{error,duplicate_mixins}, _}}}]}],
+              ?assertMatch({error, [{Path,
+                                     [{none, compile,
+                                       {parse_transform, mixer, {{error, duplicate_mixins}, _}}}]}],
                             []}, Error) end}].
 
 %% Internal functions

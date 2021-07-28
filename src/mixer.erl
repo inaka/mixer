@@ -22,6 +22,15 @@
 
 -export([parse_transform/2]).
 -ignore_xref(parse_transform/2).
+% ... since there's no behaviour for parse transformations
+-hank([{unnecessary_function_arguments, [parse_transform/2]}]).
+
+-elvis([{elvis_style, no_debug_call,
+                      #{ ignore => [{mixer, expand_mixin, 2},
+                                    {mixer, no_dupes, 2}] }}, % calls to io:format
+        {elvis_style, invalid_dynamic_call,
+                      #{ ignore => [{mixer, expand_mixin, 2},
+                                    {mixer, sorted_mod_exports, 1}] }}]). % calls to :module_info
 
 -define(ARITY_LIMIT, 26).
 
@@ -34,7 +43,8 @@
 -record(override_mixin, {line,
                          mod}).
 
--spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()]) -> [term()].
+-spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()])
+      -> [term()].
 parse_transform(Forms, _Options) ->
     lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),

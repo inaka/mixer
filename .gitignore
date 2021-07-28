@@ -3,3 +3,4 @@ ebin/*
 logs/
 *.beam
 _build/*
+doc/
