@@ -22,29 +22,41 @@
 
 -export([parse_transform/2]).
 -ignore_xref(parse_transform/2).
-% ... since there's no behaviour for parse transformations
--hank([{unnecessary_function_arguments, [parse_transform/2]}]).
 
--elvis([{elvis_style, no_debug_call,
-                      #{ ignore => [{mixer, expand_mixin, 2},
-                                    {mixer, no_dupes, 2}] }}, % calls to io:format
-        {elvis_style, invalid_dynamic_call,
-                      #{ ignore => [{mixer, expand_mixin, 2},
-                                    {mixer, sorted_mod_exports, 1}] }}]). % calls to :module_info
+-elvis([
+    {elvis_style, no_debug_call, #{
+        ignore => [
+            {mixer, expand_mixin, 2},
+            % calls to io:format
+            {mixer, no_dupes, 2}
+        ]
+    }},
+    {elvis_style, invalid_dynamic_call, #{
+        ignore => [
+            {mixer, expand_mixin, 2},
+            % calls to :module_info
+            {mixer, sorted_mod_exports, 1}
+        ]
+    }}
+]).
 
 -define(ARITY_LIMIT, 26).
 
--record(mixin, {line,
-                mod,
-                fname,
-                alias,
-                arity}).
+-record(mixin, {
+    line,
+    mod,
+    fname,
+    alias,
+    arity
+}).
 
--record(override_mixin, {line,
-                         mod}).
+-record(override_mixin, {
+    line,
+    mod
+}).
 
--spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()])
-      -> [term()].
+-spec parse_transform([erl_parse:abstract_form() | erl_parse:form_info()], [compile:option()]) ->
+    [term()].
 parse_transform(Forms, _Options) ->
     lists:foreach(fun set_mod_info/1, Forms),
     set_mod_info(Forms),
@@ -62,28 +74,29 @@ parse_transform(Forms, _Options) ->
 %% Internal functions
 inject_overrides([], _Exports, Accum) ->
     lists:reverse(Accum);
-inject_overrides([#override_mixin{line=Line, mod=Mod}|T], Exports, Accum) ->
+inject_overrides([#override_mixin{line = Line, mod = Mod} | T], Exports, Accum) ->
     case sorted_mod_exports(Mod) -- Exports of
         [] ->
             inject_overrides(T, Exports, Accum);
         MixableExports ->
-            ToInject = [#mixin{line=Line, mod=Mod, fname=FName, arity=Arity, alias=FName} ||
-                           {FName, Arity} <- MixableExports],
+            ToInject = [
+                #mixin{line = Line, mod = Mod, fname = FName, arity = Arity, alias = FName}
+             || {FName, Arity} <- MixableExports
+            ],
             inject_overrides(T, Exports, ToInject ++ Accum)
     end;
-inject_overrides([H|T], Exports, Accum) ->
-    inject_overrides(T, Exports, [H|Accum]).
+inject_overrides([H | T], Exports, Accum) ->
+    inject_overrides(T, Exports, [H | Accum]).
 
 sorted_mod_exports(Mod) ->
-    lists:sort([{FName, Arity} || {FName, Arity} <- Mod:module_info(exports),
-                                  FName /= module_info]).
+    lists:sort([{FName, Arity} || {FName, Arity} <- module_exports(Mod), FName /= module_info]).
 
 set_mod_info({attribute, _, file, {FileName, _}}) ->
     erlang:put(mixer_delegate_file, FileName);
 set_mod_info({attribute, _, module, Mod}) ->
     erlang:put(mixer_calling_mod, Mod);
-set_mod_info(_) -> ok.
-
+set_mod_info(_) ->
+    ok.
 
 get_file_name() ->
     erlang:get(mixer_delegate_file).
@@ -96,13 +109,13 @@ finalize(Mixins, NewEOFLoc, Forms) ->
 
 insert_exports([], Forms, Accum) ->
     Accum ++ Forms;
-insert_exports([#mixin{line=Line}|_]=Mixins, [{attribute, Line, mixin, _}|FT], Accum) ->
+insert_exports([#mixin{line = Line} | _] = Mixins, [{attribute, Line, mixin, _} | FT], Accum) ->
     {Exports, Mixins1} = make_export_statement(Line, Mixins),
     insert_exports(Mixins1, FT, Accum ++ Exports);
-insert_exports([#mixin{line=Line}|_]=Mixins, [], Accum) ->
-    {Exports, Mixins1} = make_export_statement(Line,  Mixins),
+insert_exports([#mixin{line = Line} | _] = Mixins, [], Accum) ->
+    {Exports, Mixins1} = make_export_statement(Line, Mixins),
     insert_exports(Mixins1, [], Accum ++ Exports);
-insert_exports(Mixins, [H|T], Accum) ->
+insert_exports(Mixins, [H | T], Accum) ->
     insert_exports(Mixins, T, Accum ++ [H]).
 
 strip_eof_location(Forms) ->
@@ -110,69 +123,67 @@ strip_eof_location(Forms) ->
 
 strip_eof_location([], Accum) ->
     lists:reverse(Accum);
-strip_eof_location([{eof, EOFLoc}|T], Accum) ->
+strip_eof_location([{eof, EOFLoc} | T], Accum) ->
     {EOFLoc, lists:reverse(Accum) ++ T};
-strip_eof_location([H|T], Accum) ->
-    strip_eof_location(T, [H|Accum]).
+strip_eof_location([H | T], Accum) ->
+    strip_eof_location(T, [H | Accum]).
 
 parse_and_expand_mixins([], {[], _, Specs}) ->
     {[], [], Specs};
 parse_and_expand_mixins([], {Mixins, Exports, Specs}) ->
     {group_mixins({none, 0}, lists:keysort(2, Mixins), []), Exports, Specs};
-parse_and_expand_mixins([{attribute, Line, mixin, Mixins0}|T], {Mixins, Exports, Specs})
-  when is_list(Mixins0) ->
+parse_and_expand_mixins([{attribute, Line, mixin, Mixins0} | T], {Mixins, Exports, Specs}) when
+    is_list(Mixins0)
+->
     Mixins1 = [expand_mixin(Line, Mixin) || Mixin <- Mixins0],
     parse_and_expand_mixins(T, {lists:flatten([Mixins, Mixins1]), Exports, Specs});
-parse_and_expand_mixins([{attribute, _Line, mixin_specs, Specs}|T], {Mixins, Exports, _Specs}) ->
+parse_and_expand_mixins([{attribute, _Line, mixin_specs, Specs} | T], {Mixins, Exports, _Specs}) ->
     parse_and_expand_mixins(T, {Mixins, Exports, Specs});
-parse_and_expand_mixins([{attribute, _Line, export, Exports1}|T], {Mixins, Exports, Specs}) ->
+parse_and_expand_mixins([{attribute, _Line, export, Exports1} | T], {Mixins, Exports, Specs}) ->
     parse_and_expand_mixins(T, {Mixins, lists:flatten(Exports, Exports1), Specs});
-parse_and_expand_mixins([_|T], Accum) ->
+parse_and_expand_mixins([_ | T], Accum) ->
     parse_and_expand_mixins(T, Accum).
 
 group_mixins(_, [], Accum) ->
     lists:keysort(2, Accum);
-group_mixins({CMod, CLine}, [#mixin{mod=CMod, line=CLine}=H|T], Accum) ->
-    group_mixins({CMod, CLine}, T, [H|Accum]);
-group_mixins({CMod, CLine}, [#mixin{mod=CMod}=H|T], Accum) ->
-    group_mixins({CMod, CLine}, T, [H#mixin{line=CLine}|Accum]);
-group_mixins({_CMod, _}, [#mixin{mod=Mod, line=Line}=H|T], Accum) ->
-    group_mixins({Mod, Line}, T, [H|Accum]);
-group_mixins({Mod, Line}, [#override_mixin{}=H|T], Accum) ->
-    group_mixins({Mod, Line}, T, [H|Accum]).
+group_mixins({CMod, CLine}, [#mixin{mod = CMod, line = CLine} = H | T], Accum) ->
+    group_mixins({CMod, CLine}, T, [H | Accum]);
+group_mixins({CMod, CLine}, [#mixin{mod = CMod} = H | T], Accum) ->
+    group_mixins({CMod, CLine}, T, [H#mixin{line = CLine} | Accum]);
+group_mixins({_CMod, _}, [#mixin{mod = Mod, line = Line} = H | T], Accum) ->
+    group_mixins({Mod, Line}, T, [H | Accum]);
+group_mixins({Mod, Line}, [#override_mixin{} = H | T], Accum) ->
+    group_mixins({Mod, Line}, T, [H | Accum]).
 
 expand_mixin(Line, Name) when is_atom(Name) ->
-    case catch Name:module_info(exports) of
-        {'EXIT', _} ->
-            io:format(
-                "~s:~p Unable to resolve imported module ~p~n",
-                [get_file_name(), Line, Name]),
-            error({error, undef_mixin_module});
-        Exports ->
-            [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
-             || {Fun, Arity} <- Exports, Fun /= module_info]
-    end;
+    Exports = module_exports(Name),
+    [
+        #mixin{line = Line, mod = Name, fname = Fun, alias = Fun, arity = Arity}
+     || {Fun, Arity} <- Exports, Fun /= module_info
+    ];
 expand_mixin(Line, {Name, except, module}) when is_atom(Name) ->
-    [#override_mixin{line=Line, mod=Name}];
-expand_mixin(Line, {Name, except, Funs}) when is_atom(Name),
-                                              is_list(Funs) ->
-    case catch Name:module_info(exports) of
-        {'EXIT', _} ->
-            io:format(
-                "~s:~p Unable to resolve imported module ~p~n",
-                [get_file_name(), Line, Name]),
-            error({error, undef_mixin_module});
-        Exports ->
-            [#mixin{line=Line, mod=Name, fname=Fun, alias=Fun, arity=Arity}
-             || {Fun, Arity} <- Exports,
-                Fun /= module_info andalso not lists:member({Fun, Arity}, Funs)]
-    end;
-expand_mixin(Line, {Name, Funs}) when is_atom(Name),
-                                      is_list(Funs) ->
-    [begin
-         {Fun, Arity, Alias} = parse_mixin_ref(MixinRef),
-         #mixin{line=Line, mod=Name, fname=Fun, arity=Arity, alias=Alias}
-     end || MixinRef  <- Funs].
+    [#override_mixin{line = Line, mod = Name}];
+expand_mixin(Line, {Name, except, Funs}) when
+    is_atom(Name),
+    is_list(Funs)
+->
+    Exports = module_exports(Name),
+    [
+        #mixin{line = Line, mod = Name, fname = Fun, alias = Fun, arity = Arity}
+     || {Fun, Arity} <- Exports,
+        Fun /= module_info andalso not lists:member({Fun, Arity}, Funs)
+    ];
+expand_mixin(Line, {Name, Funs}) when
+    is_atom(Name),
+    is_list(Funs)
+->
+    lists:map(
+        fun(MixinRef) ->
+            {Fun, Arity, Alias} = parse_mixin_ref(MixinRef),
+            #mixin{line = Line, mod = Name, fname = Fun, arity = Arity, alias = Alias}
+        end,
+        Funs
+    ).
 
 parse_mixin_ref({{Fun, Arity}, Alias}) ->
     {Fun, Arity, Alias};
@@ -181,19 +192,20 @@ parse_mixin_ref({Fun, Arity}) ->
 
 no_dupes([]) ->
     ok;
-no_dupes([H|T]) ->
+no_dupes([H | T]) ->
     no_dupes(H, T),
     no_dupes(T).
 
 no_dupes(_, []) ->
     ok;
-no_dupes(#mixin{mod=Mod, fname=Fun, arity=Arity, line=Line}, Rest) ->
+no_dupes(#mixin{mod = Mod, fname = Fun, arity = Arity, line = Line}, Rest) ->
     case find_dupe(Fun, Arity, Rest) of
         {ok, {Mod1, Fun, Arity}} ->
             io:format(
                 "~s:~p Duplicate mixin detected "
                 "importing ~p/~p from ~p and ~p~n",
-                [get_file_name(), Line, Fun, Arity, Mod, Mod1]),
+                [get_file_name(), Line, Fun, Arity, Mod, Mod1]
+            ),
             error({error, duplicate_mixins});
         not_found ->
             ok
@@ -201,23 +213,29 @@ no_dupes(#mixin{mod=Mod, fname=Fun, arity=Arity, line=Line}, Rest) ->
 
 find_dupe(_Fun, _Arity, []) ->
     not_found;
-find_dupe(Fun, Arity, [#mixin{mod=Name, fname=Fun, arity=Arity}|_]) ->
+find_dupe(Fun, Arity, [#mixin{mod = Name, fname = Fun, arity = Arity} | _]) ->
     {ok, {Name, Fun, Arity}};
-find_dupe(Fun, Arity, [_|T]) ->
+find_dupe(Fun, Arity, [_ | T]) ->
     find_dupe(Fun, Arity, T).
 
 insert_stubs(Mixins, Specs, EOFLoc, Forms) ->
     F =
-        fun(#mixin{} = Mixin, {CurrEOFLoc, Acc}) ->
-            #mixin{mod=Mod, fname=Fun, arity=Arity, alias=Alias} = Mixin,
-            {erl_anno:set_line(erl_anno:line(CurrEOFLoc) + 1, CurrEOFLoc),
-             [  generate_stub(
-                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
-                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
-                    binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
-                    Arity, Specs, CurrEOFLoc) |Acc]
-            };
-            (#override_mixin{}, {CurrEOFLoc, Acc}) -> {CurrEOFLoc, Acc}
+        fun
+            (#mixin{} = Mixin, {CurrEOFLoc, Acc}) ->
+                #mixin{mod = Mod, fname = Fun, arity = Arity, alias = Alias} = Mixin,
+                {erl_anno:set_line(erl_anno:line(CurrEOFLoc) + 1, CurrEOFLoc), [
+                    generate_stub(
+                        binary_to_list(iolist_to_binary(io_lib:format("~p", [Mod]))),
+                        binary_to_list(iolist_to_binary(io_lib:format("~p", [Alias]))),
+                        binary_to_list(iolist_to_binary(io_lib:format("~p", [Fun]))),
+                        Arity,
+                        Specs,
+                        CurrEOFLoc
+                    )
+                    | Acc
+                ]};
+            (#override_mixin{}, {CurrEOFLoc, Acc}) ->
+                {CurrEOFLoc, Acc}
         end,
     {CurrEOFLoc1, Stubs} = lists:foldr(F, {EOFLoc, []}, Mixins),
     {CurrEOFLoc1, Forms ++ lists:reverse(lists:flatten(Stubs))}.
@@ -246,18 +264,23 @@ replace_stub_location(CurrEOFLoc, {function, _, Name, Arity, Body}) ->
     {function, CurrEOFLoc, Name, Arity, replace_stub_location(CurrEOFLoc, Body, [])}.
 
 replace_stub_location(CurrEOFLoc, [{clause, _, Vars, [], Call}], _) ->
-    [{clause, CurrEOFLoc, replace_stub_location(CurrEOFLoc, Vars, []), [],
-     replace_stub_location(CurrEOFLoc, Call, [])}];
+    [
+        {clause, CurrEOFLoc, replace_stub_location(CurrEOFLoc, Vars, []), [],
+            replace_stub_location(CurrEOFLoc, Call, [])}
+    ];
 replace_stub_location(_CurrEOFLoc, [], Accum) ->
     lists:reverse(Accum);
-replace_stub_location(CurrEOFLoc, [{var, _, Var}|T], Accum) ->
-    replace_stub_location(CurrEOFLoc, T, [{var, CurrEOFLoc, Var}|Accum]);
+replace_stub_location(CurrEOFLoc, [{var, _, Var} | T], Accum) ->
+    replace_stub_location(CurrEOFLoc, T, [{var, CurrEOFLoc, Var} | Accum]);
 replace_stub_location(
-    CurrEOFLoc, [{call, _, {remote, _, {atom, _, Mod}, {atom, _, Fun}}, Args}],
-    _Accum) ->
-    [{call, CurrEOFLoc,
-      {remote, CurrEOFLoc, {atom, CurrEOFLoc, Mod}, {atom, CurrEOFLoc, Fun}},
-      replace_stub_location(CurrEOFLoc, Args, [])}].
+    CurrEOFLoc,
+    [{call, _, {remote, _, {atom, _, Mod}, {atom, _, Fun}}, Args}],
+    _Accum
+) ->
+    [
+        {call, CurrEOFLoc, {remote, CurrEOFLoc, {atom, CurrEOFLoc, Mod}, {atom, CurrEOFLoc, Fun}},
+            replace_stub_location(CurrEOFLoc, Args, [])}
+    ].
 
 %% Use single upper-case letters for params
 make_param_list(0) ->
@@ -273,7 +296,7 @@ make_param_list(Count, Accum) ->
 push_param(Pos, []) ->
     [(64 + Pos)];
 push_param(Pos, Accum) ->
-    [(64 + Pos), 44|Accum].
+    [(64 + Pos), 44 | Accum].
 
 make_export_statement(Line, Mixins) ->
     F = fun(Mixin) -> Mixin#mixin.line == Line end,
@@ -282,8 +305,30 @@ make_export_statement(Line, Mixins) ->
             {[], Mixins};
         {ME, Mixins1} ->
             Exports =
-                [{Alias, Arity} || #mixin{alias=Alias, arity=Arity} <- ME],
+                [{Alias, Arity} || #mixin{alias = Alias, arity = Arity} <- ME],
             Export =
                 {attribute, Line, export, Exports},
             {[Export], Mixins1}
+    end.
+
+module_exports(Module) ->
+    try
+        {module, Module} = code:ensure_loaded(Module),
+        erlang:get_module_info(Module, exports)
+    catch
+        error:{badmatch, {error, Error}} ->
+            io:format(standard_error, "~s: Can't find mixin module ~p: ~p~n", [
+                get_file_name(), Module, Error
+            ]),
+            error(
+                {error,
+                    {undef_mixin_module, #{
+                        path => code:get_path(), mixin => Module, source => erlang:get()
+                    }}}
+            );
+        error:Error ->
+            io:format(standard_error, "~s: Unable to retrieve mixin module ~p info: ~p~n", [
+                get_file_name(), Module, Error
+            ]),
+            error({error, {invalid_mixin_module, #{mixin => Module, source => erlang:get()}}})
     end.

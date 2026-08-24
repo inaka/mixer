@@ -6,8 +6,9 @@
 
 -export([doit/1]).
 -export([
-  'or'/2, 'a-function'/1,
-  'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
+    'or'/2,
+    'a-function'/1,
+    'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
 ]).
 -export(['\''/1, ''/1]).
 -export(['🎱'/1]).
@@ -21,13 +22,13 @@ doit(A) ->
     ['or_override', A, B].
 
 'a-function'(A) ->
-  [a_function_override, A].
+    [a_function_override, A].
 
 'CamelCaseFunction WithSpaces'() ->
-  [camel_override].
+    [camel_override].
 
 'CamelCaseFunction WithSpaces'(A) ->
-  [camel_override, A].
+    [camel_override, A].
 
 '\''(This) ->
     {This, is, overridden}.

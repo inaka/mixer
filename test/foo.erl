@@ -2,8 +2,9 @@
 
 -export([doit/0, doit/1, doit/2]).
 -export([
-  'or'/2, 'a-function'/1,
-  'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
+    'or'/2,
+    'a-function'/1,
+    'CamelCaseFunction WithSpaces'/0, 'CamelCaseFunction WithSpaces'/1
 ]).
 -export(['\''/0, '\''/1, ''/0, ''/1]).
 -export(['🎱'/0, '🎱'/1]).

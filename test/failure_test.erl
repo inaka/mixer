@@ -8,26 +8,44 @@
 -elvis([{elvis_style, dont_repeat_yourself, disable}]).
 
 duplicate_test_() ->
-    [{<<"Duplicate mixins detected">>,
-      fun() ->
-              Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
-              ?assertEqual(ok, check_make_dir(Mkdir)),
-              {ok, Path, Error} = compile_bad_test_file("duplicates"),
-              ?assertMatch({error, [{Path,
-                                     [{none, compile,
-                                       {parse_transform, mixer, {{error, duplicate_mixins}, _}}}]}],
-                            []}, Error) end}].
+    [
+        {<<"Duplicate mixins detected">>, fun() ->
+            Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
+            ?assertEqual(ok, check_make_dir(Mkdir)),
+            {ok, Path, Error} = compile_bad_test_file("duplicates"),
+            ?assertMatch(
+                {error,
+                    [
+                        {Path, [
+                            {none, compile,
+                                {parse_transform, mixer, {error, {error, duplicate_mixins}, _}}}
+                        ]}
+                    ],
+                    []},
+                Error
+            )
+        end}
+    ].
 
 conflicting_mixins_test_() ->
-    [{<<"Conflicting mixins detected">>,
-      fun()->
-              Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
-              ?assertEqual(ok, check_make_dir(Mkdir)),
-              {ok, Path, Error} = compile_bad_test_file("conflicts"),
-              ?assertMatch({error, [{Path,
-                                     [{none, compile,
-                                       {parse_transform, mixer, {{error, duplicate_mixins}, _}}}]}],
-                            []}, Error) end}].
+    [
+        {<<"Conflicting mixins detected">>, fun() ->
+            Mkdir = file:make_dir(?EUNIT_TEMP_PATH),
+            ?assertEqual(ok, check_make_dir(Mkdir)),
+            {ok, Path, Error} = compile_bad_test_file("conflicts"),
+            ?assertMatch(
+                {error,
+                    [
+                        {Path, [
+                            {none, compile,
+                                {parse_transform, mixer, {error, {error, duplicate_mixins}, _}}}
+                        ]}
+                    ],
+                    []},
+                Error
+            )
+        end}
+    ].
 
 %% Internal functions
 compile_bad_test_file(Module) ->
