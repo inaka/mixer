@@ -22,8 +22,6 @@
 
 -export([parse_transform/2]).
 -ignore_xref(parse_transform/2).
-% ... since there's no behaviour for parse transformations
--hank([{unnecessary_function_arguments, [parse_transform/2]}]).
 
 -elvis([
     {elvis_style, no_debug_call, #{
@@ -315,16 +313,22 @@ make_export_statement(Line, Mixins) ->
 
 module_exports(Module) ->
     try
+        {module, Module} = code:ensure_loaded(Module),
         erlang:get_module_info(Module, exports)
     catch
-        error:badarg:_ ->
-            io:format(standard_error, "~s: Unable to resolve imported module ~p~n", [
-                get_file_name(), Module
+        error:{badmatch, {error, Error}} ->
+            io:format(standard_error, "~s: Can't find mixin module ~p: ~p~n", [
+                get_file_name(), Module, Error
             ]),
             error(
                 {error,
                     {undef_mixin_module, #{
                         path => code:get_path(), mixin => Module, source => erlang:get()
                     }}}
-            )
+            );
+        error:Error ->
+            io:format(standard_error, "~s: Unable to retrieve mixin module ~p info: ~p~n", [
+                get_file_name(), Module, Error
+            ]),
+            error({error, {invalid_mixin_module, #{mixin => Module, source => erlang:get()}}})
     end.

@@ -119,7 +119,9 @@ specs_test_() ->
         ]}
     ].
 
-exports(Mod) -> erlang:get_module_info(Mod, exports).
+exports(Mod) ->
+    {module, Mod} = code:ensure_loaded(Mod),
+    erlang:get_module_info(Mod, exports).
 
 specs(Mod) ->
     Path = code:which(Mod),

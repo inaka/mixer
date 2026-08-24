@@ -18,7 +18,7 @@ duplicate_test_() ->
                     [
                         {Path, [
                             {none, compile,
-                                {parse_transform, mixer, {{error, duplicate_mixins}, _}}}
+                                {parse_transform, mixer, {error, {error, duplicate_mixins}, _}}}
                         ]}
                     ],
                     []},
@@ -38,7 +38,7 @@ conflicting_mixins_test_() ->
                     [
                         {Path, [
                             {none, compile,
-                                {parse_transform, mixer, {{error, duplicate_mixins}, _}}}
+                                {parse_transform, mixer, {error, {error, duplicate_mixins}, _}}}
                         ]}
                     ],
                     []},

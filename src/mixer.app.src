@@ -20,7 +20,7 @@
 
 {application, mixer, [
     {description, "Mix in public functions from external modules"},
-    {vsn, "1.2.0"},
+    {vsn, semver},
     {registered, []},
     {applications, [kernel, stdlib]},
     {env, []},
