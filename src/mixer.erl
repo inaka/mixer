@@ -321,5 +321,10 @@ module_exports(Module) ->
             io:format(standard_error, "~s: Unable to resolve imported module ~p~n", [
                 get_file_name(), Module
             ]),
-            error({error, {undef_mixin_module, #{mixin => Module, source => erlang:get()}}})
+            error(
+                {error,
+                    {undef_mixin_module, #{
+                        path => code:get_path(), mixin => Module, source => erlang:get()
+                    }}}
+            )
     end.
